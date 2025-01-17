@@ -1,0 +1,1688 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, user-scalable=no" />
+  <title>Space Shooter</title>
+  <style>
+    /* =============== Grundlayout =============== */
+    body {
+      margin: 0;
+      overflow: hidden;
+      background: black;
+      user-select: none;
+      touch-action: none;
+      font-family: Arial, sans-serif;
+    }
+    canvas {
+      display: block;
+    }
+
+    /* =============== Joystick =============== */
+    #joystick {
+      position: absolute;
+      bottom: 50px;
+      left: 50px;
+      width: 150px;
+      height: 150px;
+      background: rgba(255, 255, 255, 0.2);
+      border-radius: 50%;
+      z-index: 10;
+    }
+    #knob {
+      position: absolute;
+      top: 50%;
+      left: 50%;
+      width: 60px;
+      height: 60px;
+      background: rgba(255, 255, 255, 0.8);
+      border-radius: 50%;
+      transform: translate(-50%, -50%);
+    }
+
+    /* =============== Score & Lives oben links =============== */
+    #score {
+      position: absolute;
+      top: 10px;
+      left: 10px;
+      color: white;
+      font-size: 24px;
+      z-index: 5;
+    }
+    #skills {
+      position: absolute;
+      top: 40px;
+      left: 10px;
+      color: white;
+      font-size: 18px;
+      z-index: 5;
+    }
+    #skill-notification {
+      position: absolute;
+      bottom: 20px;
+      left: 50%;
+      transform: translateX(-50%);
+      font-size: 24px;
+      color: black;
+      padding: 10px;
+      border-radius: 5px;
+      display: none;
+      z-index: 15;
+      background-color: rgba(255, 255, 255, 0.9);
+    }
+
+    /* =============== Pause-, Creative-, Start- und Game Over-Menü =============== */
+    #pauseButton {
+      position: absolute;
+      top: 10px;
+      right: 10px;
+      padding: 15px 30px;
+      font-size: 18px;
+      background: white;
+      color: black;
+      border: none;
+      border-radius: 5px;
+      cursor: pointer;
+      z-index: 15;
+    }
+    #pauseMenu,
+    #creativeMenu,
+    #startMenu,
+    #gameOverMenu {
+      position: fixed; /* Fixiert das Menü über den gesamten Bildschirm */
+      top: 0;
+      left: 0;
+      width: 100%;
+      height: 100%;
+      background: rgba(0, 0, 0, 0.95);
+      color: white;
+      display: none;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      z-index: 30; /* Höher als andere Menüs */
+    }
+    .menuButton {
+      margin: 10px;
+      padding: 20px 40px;
+      font-size: 22px;
+      background: white;
+      color: black;
+      border: none;
+      border-radius: 5px;
+      cursor: pointer;
+    }
+    h2 {
+      font-size: 28px;
+      text-align: center;
+      margin-bottom: 20px;
+    }
+    .collapsible {
+      cursor: pointer;
+      background: rgba(255, 255, 255, 0.1);
+      padding: 10px;
+      margin-top: 5px;
+      width: 200px;
+      text-align: center;
+      border-radius: 5px;
+    }
+    .collapsible-content {
+      display: none;
+      margin-bottom: 15px;
+      width: 220px;
+    }
+    label {
+      font-size: 20px;
+      display: block;
+      margin-bottom: 15px;
+      text-align: center;
+    }
+
+    /* Switch (statt Checkbox) */
+    .switch-wrapper {
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      gap: 10px;
+      margin-bottom: 15px;
+    }
+    .switch-label {
+      font-size: 20px;
+      margin: 0;
+    }
+    .switch {
+      position: relative;
+      display: inline-block;
+      width: 60px;
+      height: 34px;
+    }
+    .switch input {
+      opacity: 0;
+      width: 0;
+      height: 0;
+    }
+    .slider {
+      position: absolute;
+      cursor: pointer;
+      top: 0; left: 0; right: 0; bottom: 0;
+      background-color: #999;
+      transition: .4s;
+      border-radius: 34px;
+    }
+    .slider:before {
+      position: absolute;
+      content: "";
+      height: 26px;
+      width: 26px;
+      left: 4px;
+      bottom: 4px;
+      background-color: white;
+      transition: .4s;
+      border-radius: 50%;
+    }
+    input:checked + .slider {
+      background-color: #4CAF50;
+    }
+    input:focus + .slider {
+      box-shadow: 0 0 1px #4CAF50;
+    }
+    input:checked + .slider:before {
+      transform: translateX(26px);
+    }
+
+    /* Fähigkeiten-Einstellungen (Buttons & Input) */
+    .skill-control {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 10px;
+      margin-bottom: 10px;
+    }
+    .skill-control button {
+      padding: 5px 10px;
+      font-size: 16px;
+      border: none;
+      border-radius: 4px;
+      background: white;
+      color: black;
+      cursor: pointer;
+    }
+    .skill-control input {
+      width: 60px;
+      font-size: 16px;
+      text-align: center;
+    }
+    .skill-name {
+      width: 120px;
+      text-align: right;
+      font-size: 18px;
+    }
+
+    /* Blinken beim Invincible */
+    .blink {
+      animation: blinker 0.5s linear infinite;
+    }
+
+    @keyframes blinker {
+      50% { opacity: 0; }
+    }
+
+    /* =============== Volume Regler im Startmenü =============== */
+    #volumeControls {
+      margin-top: 20px;
+      width: 300px;
+      text-align: center;
+    }
+    #volumeControls label {
+      display: block;
+      margin: 10px 0;
+    }
+    #volumeControls input[type="range"] {
+      width: 100%;
+    }
+
+    /* Zusätzliche Styles für den Test-Sound-Button */
+    #testSoundButton {
+      margin-top: 20px;
+      padding: 10px 20px;
+      font-size: 16px;
+      background: #ff6347;
+      color: white;
+      border: none;
+      border-radius: 5px;
+      cursor: pointer;
+    }
+
+    /* =============== Explosionseffekt =============== */
+    .explosion {
+      position: absolute;
+      pointer-events: none;
+      z-index: 35; /* Höher als alles andere */
+    }
+
+    /* =============== Feuerantrieb (Thruster) =============== */
+    .thruster-particle {
+      position: absolute;
+      width: 5px;
+      height: 5px;
+      background: orange;
+      border-radius: 50%;
+      pointer-events: none;
+      z-index: 20;
+      transition: transform 1s linear, opacity 1s linear, width 1s linear, height 1s linear;
+    }
+  </style>
+</head>
+<body>
+  <!-- Score & Skills -->
+  <div id="score">Score: 0 | Lives: 5</div>
+  <div id="skills">Skills: None</div>
+  <div id="skill-notification"></div>
+
+  <!-- Spielfeld -->
+  <canvas id="gameCanvas"></canvas>
+
+  <!-- Joystick -->
+  <div id="joystick">
+    <div id="knob"></div>
+  </div>
+
+  <!-- Pause Button -->
+  <button id="pauseButton">Pause</button>
+
+  <!-- Start-Menü -->
+  <div id="startMenu" style="display: flex;">
+    <h2>Space Shooter</h2>
+    <canvas id="startMenuCanvas" width="500" height="300"></canvas>
+    
+    <!-- Volume Regler -->
+    <div id="volumeControls">
+      <label>
+        Musik Lautstärke:
+        <input type="range" id="musicVolume" min="0" max="1" step="0.01" value="0.5">
+      </label>
+      <label>
+        Sound Effekte Lautstärke:
+        <input type="range" id="sfxVolume" min="0" max="1" step="0.01" value="0.3">
+      </label>
+    </div>
+    
+    <!-- Test Sound Button -->
+    <button id="testSoundButton" class="menuButton">Test Sound</button>
+    
+    <button id="playButton" class="menuButton">Play</button>
+    <button id="quitButton" class="menuButton">Quit</button>
+  </div>
+
+  <!-- Pausenmenü -->
+  <div id="pauseMenu">
+    <button id="resumeButton" class="menuButton">Resume</button>
+    <button id="restartButton" class="menuButton">Restart</button>
+    <button id="creativeButton" class="menuButton">Creative</button>
+  </div>
+
+  <!-- Creative-Menü -->
+  <div id="creativeMenu">
+    <button id="backToPauseButton" class="menuButton">Back</button>
+    <div id="creativeOptions">
+      <h2>Creative</h2>
+
+      <!-- 1) Game -->
+      <div>
+        <h3 class="collapsible">Game</h3>
+        <div class="collapsible-content">
+          <label>
+            Enemy Points:
+            <input
+              type="number"
+              id="pointsForDefeatedEnemy"
+              min="0"
+              step="1"
+              value="10"
+            />
+          </label>
+
+          <label>
+            Points for Skill:
+            <input
+              type="number"
+              id="pointsForAbility"
+              min="0"
+              step="1"
+              value="50"
+            />
+          </label>
+
+          <label>
+            Base Speed:
+            <input
+              type="number"
+              id="gameSpeedInput"
+              min="0.1"
+              max="2"
+              step="0.1"
+              value="0.7"
+            />
+          </label>
+        </div>
+      </div>
+
+      <!-- 2) Enemy -->
+      <div>
+        <h3 class="collapsible">Enemy</h3>
+        <div class="collapsible-content">
+          <label>
+            Spawn Rate:
+            <input
+              type="number"
+              id="spawnRateInput"
+              min="100"
+              max="5000"
+              step="100"
+              value="1000"
+            />
+          </label>
+
+          <label>
+            Enemy Speed:
+            <input
+              type="number"
+              id="enemySpeedInput"
+              min="0.1"
+              max="3"
+              step="0.1"
+              value="1"
+            />
+          </label>
+
+          <div class="switch-wrapper">
+            <p class="switch-label">Enemy Skills</p>
+            <label class="switch">
+              <input type="checkbox" id="enemyAbilitiesSwitch" checked />
+              <span class="slider"></span>
+            </label>
+          </div>
+        </div>
+      </div>
+
+      <!-- 3) Fähigkeiten -->
+      <div>
+        <h3 class="collapsible">Skills</h3>
+        <div class="collapsible-content" id="skillsContainer">
+          <!-- Dynamisch eingefügte Skill Controls -->
+        </div>
+      </div>
+
+      <!-- 4) Score -->
+      <label>
+        Score:
+        <input
+          type="number"
+          id="setScoreInput"
+          min="0"
+          step="10"
+          value="0"
+        />
+      </label>
+
+      <div class="switch-wrapper">
+        <p class="switch-label">Manual Skill Gains</p>
+        <label class="switch">
+          <input type="checkbox" id="manualPointsSwitch" checked />
+          <span class="slider"></span>
+        </label>
+      </div>
+    </div>
+  </div>
+
+  <!-- Game Over Menü -->
+  <div id="gameOverMenu">
+    <h2>Game Over</h2>
+    <p id="finalScore">Your Score: 0</p>
+    <button id="playAgainButton" class="menuButton">Play Again</button>
+    <button id="quitGameButton" class="menuButton">Quit</button>
+  </div>
+
+  <!-- Audio Elemente -->
+  <!-- Stelle sicher, dass die Dateipfade zu den heruntergeladenen Audiodateien korrekt sind -->
+  <audio id="fireSound" src="sound/35678__jobro__laser10.wav" preload="auto"></audio>
+  <audio id="enemyHitSound" src="sound/hit_enemy.mp3" preload="auto"></audio>
+  <audio id="playerHitSound" src="sound/got_hit.mp3" preload="auto"></audio>
+  <audio id="explosionSound" src="sound/Dead_explosion.mp3" preload="auto"></audio>
+  <audio id="lostSound" src="sound/266163__plasterbrain__pacman-is-dead.wav" preload="auto"></audio>
+
+  <!-- Explosion Container -->
+  <div id="explosionContainer" class="explosion"></div>
+
+  <script>
+    /* ================================
+       STARTMENÜ - HINTERGRUND
+       Stationäres Raumschiff in der Mitte
+    =============================== */
+    const startMenu = document.getElementById("startMenu");
+    const playButton = document.getElementById("playButton");
+    const quitButton = document.getElementById("quitButton");
+    const startCtx = document.getElementById("startMenuCanvas").getContext("2d");
+    const startCanvas = document.getElementById("startMenuCanvas");
+
+    // Stationäres Raumschiff Position
+    const startShip = {
+      x: startCanvas.width / 2,
+      y: startCanvas.height / 2,
+      size: 40,
+      color: "gray" // Ändern von "lime" zu "gray"
+    };
+
+    // Sterne für den Startbildschirm
+    let startStars = [];
+    for(let i = 0; i < 100; i++) {
+      startStars.push({
+        x: Math.random() * startCanvas.width,
+        y: Math.random() * startCanvas.height,
+        speed: Math.random() * 0.5 + 0.2,
+        size: Math.random() * 1.5 + 0.5
+      });
+    }
+
+    function drawStartMenu(){
+      startCtx.clearRect(0, 0, startCanvas.width, startCanvas.height);
+
+      // Sterne
+      startCtx.fillStyle = "white";
+      startStars.forEach(s => {
+        s.y += s.speed;
+        if(s.y > startCanvas.height){
+          s.y = 0;
+          s.x = Math.random() * startCanvas.width;
+        }
+        startCtx.beginPath();
+        startCtx.arc(s.x, s.y, s.size, 0, 2 * Math.PI);
+        startCtx.fill();
+      });
+
+      // Stationäres Raumschiff
+      startCtx.fillStyle = startShip.color;
+      startCtx.beginPath();
+      startCtx.moveTo(startShip.x - startShip.size / 2, startShip.y + startShip.size / 2);
+      startCtx.lineTo(startShip.x + startShip.size / 2, startShip.y + startShip.size / 2);
+      startCtx.lineTo(startShip.x,       startShip.y - startShip.size / 2);
+      startCtx.closePath();
+      startCtx.fill();
+
+      requestAnimationFrame(drawStartMenu);
+    }
+    drawStartMenu(); // Start-Loop
+
+    /* ================================
+       HAUPT-SPIEL
+    =============================== */
+    const canvas = document.getElementById("gameCanvas");
+    const ctx = canvas.getContext("2d");
+    canvas.width = window.innerWidth;
+    canvas.height = window.innerHeight;
+
+    // Joystick-Variablen
+    let joystickTouchId = null;
+    let joystickIsMouseDown = false;
+    let joystickDeltaX = 0;
+    let joystickDeltaY = 0;
+    const maxJoystickRadius = 50;
+
+    // Tastatur: Pfeiltasten und WASD
+    let keyUp=false, keyDown=false, keyLeft=false, keyRight=false;
+    let keyW=false, keyA=false, keyS=false, keyD=false;
+    // Schießen
+    let isFiring=false;
+    // Spiel-Pause
+    let isPaused=true;  // Am Anfang: Startmenü sichtbar => Spiel pausiert
+
+    // Menü-Einstellungen
+    let timeScale=0.7;
+    let spawnIntervalId=null;
+    let pointsForDefeatedEnemyValue=10;
+    let pointsForAbilityValue=50;
+    let enemyBaseSpeed=1;
+    let enableEnemyAbilities=true;
+    let enableManualPointsAbilities=true;
+
+    // Score & Skills
+    let score=0;
+    let lastShotTime=0;
+    let lastSkillScore=0;
+
+    // Spielzustände
+    let gameOverPending = false; // Neue Flag für Game Over Pause
+
+    // SPIELER mit Leben + kurz unverwundbar
+    const player={
+      x: canvas.width / 2,
+      y: canvas.height - 80,
+      width: 40,
+      height:40,
+      speed:4, // Erhöhte Geschwindigkeit von 2 auf 4
+      color:"gray",
+      lives:5,
+      invincible:false,
+      invincibleDuration: 2000, // in ms
+      invincibleStartTime: null,
+      blinkInterval: null,
+      blinkState: false,
+      currentSpeed: 4, // Basisgeschwindigkeit
+      isActive: true // Neue Eigenschaft zur Steuerung der Sichtbarkeit
+    };
+
+    // ARRAYS
+    const bullets=[];
+    const enemies=[];
+    const stars=[];
+    const thrusterParticles=[]; // Für Feuerantrieb
+    const explosions=[]; // Nur für Spieler-Explosionen
+
+    // SKILLS
+    const skills={
+      rapidFire:0,
+      multishot:0,
+      bounce:0,
+      pierce:0,
+      speed:0,
+      bulletSpeed:0,
+      bulletSize:0
+    };
+    const skillColors={
+      rapidFire:"#FF5555",
+      multishot:"#FFFF55",
+      bounce:"#FFA500",
+      pierce:"#AA55FF",
+      speed:"#55AAFF",
+      bulletSpeed:"#FFAA55",
+      bulletSize:"#55FFAA"
+    };
+
+    /* ================================
+       FUNKTIONEN FÜR SKILLS
+    =============================== */
+    function getTimeScale(){
+      let scale=timeScale;
+      if(skills.speed>=3){
+        scale *= 0.9; // 10% langsamer
+      }
+      return scale;
+    }
+    function getFireRate(){
+      let minus=skills.rapidFire * 50;
+      return Math.max(400 - minus, 100);
+    }
+    function getMultishotBullets(){
+      return(skills.multishot > 0) ? (3 + (skills.multishot -1) * 2) : 1;
+    }
+    function getPlayerSpeed(){
+      return player.currentSpeed + (skills.speed * 0.1);
+    }
+    function getBulletSpeed(){
+      return 5 + (skills.bulletSpeed * 2);
+    }
+    function getBulletSize(){
+      return 10 + (skills.bulletSize * 2);
+    }
+    function checkForAbilityGain(){
+      if(score >= lastSkillScore + pointsForAbilityValue){
+        lastSkillScore = score;
+        activateRandomSkill();
+      }
+    }
+    function activateRandomSkill(){
+      const skillProbabilities=[
+        {skill:"multishot", weight:2},
+        {skill:"speed",     weight:3},
+        {skill:"bounce",    weight:5},
+        {skill:"rapidFire", weight:7},
+        {skill:"bulletSize",weight:8},
+        {skill:"bulletSpeed",weight:8},
+        {skill:"pierce",    weight:8}
+      ];
+      const weighted=[];
+      skillProbabilities.forEach(({skill,weight})=>{
+        for(let i=0;i<weight;i++){
+          weighted.push(skill);
+        }
+      });
+      const randomSkill=weighted[Math.floor(Math.random()*weighted.length)];
+      skills[randomSkill]++;
+      displaySkillNotification(randomSkill);
+      updateSkillDisplay();
+    }
+    function displaySkillNotification(skillName){
+      const notif=document.getElementById("skill-notification");
+      notif.textContent=`Skill Gained: ${skillName}`;
+      notif.style.backgroundColor=skillColors[skillName]||"white";
+      notif.style.color=getTextColor(skillColors[skillName]||"#fff");
+      notif.style.display="block";
+      setTimeout(()=>notif.style.display="none",2000);
+    }
+    function updateSkillDisplay(){
+      const skillsDiv=document.getElementById("skills");
+      const skillText=Object.entries(skills)
+        .filter(([_,lvl])=>lvl>0)
+        .map(([n,l])=>`${capitalizeFirstLetter(n)} Lv${l}`)
+        .join(", ");
+      skillsDiv.textContent=`Skills: ${skillText||"None"}`;
+    }
+    function getTextColor(bg){
+      const rgb=bg.slice(1).match(/.{2}/g).map(x=>parseInt(x,16));
+      const br=(0.299*rgb[0]+0.587*rgb[1]+0.114*rgb[2])/255;
+      return(br>0.5)?"black":"white";
+    }
+    function capitalizeFirstLetter(string) {
+      return string.charAt(0).toUpperCase() + string.slice(1);
+    }
+
+    /* ================================
+       JOYSTICK (Touch + Maus)
+    =============================== */
+    const joystickEl = document.getElementById("joystick");
+    const knobEl     = document.getElementById("knob");
+
+    // Touch-Events
+    joystickEl.addEventListener("touchstart", (e) => {
+      joystickTouchId = e.touches[0].identifier;
+    });
+    joystickEl.addEventListener("touchmove", (e) => {
+      const rect = joystickEl.getBoundingClientRect();
+      const t = Array.from(e.touches).find(t => t.identifier === joystickTouchId);
+      if(!t) return;
+      const dx = t.clientX - (rect.left + rect.width / 2);
+      const dy = t.clientY - (rect.top + rect.height / 2);
+      let dist = Math.sqrt(dx*dx + dy*dy);
+      if(dist > maxJoystickRadius){
+        const ang = Math.atan2(dy, dx);
+        joystickDeltaX = maxJoystickRadius * Math.cos(ang);
+        joystickDeltaY = maxJoystickRadius * Math.sin(ang);
+      } else {
+        joystickDeltaX = dx;
+        joystickDeltaY = dy;
+      }
+      knobEl.style.transform = `translate(calc(-50% + ${joystickDeltaX}px), calc(-50% + ${joystickDeltaY}px))`;
+    });
+    joystickEl.addEventListener("touchend", (e) => {
+      // Prüfe, ob die beendete Berührung die Joystick-Berührung ist
+      const endedTouches = e.changedTouches;
+      for(let i = 0; i < endedTouches.length; i++){
+        if(endedTouches[i].identifier === joystickTouchId){
+          joystickDeltaX = 0;
+          joystickDeltaY = 0;
+          knobEl.style.transform = "translate(-50%, -50%)";
+          joystickTouchId = null;
+          break;
+        }
+      }
+    });
+
+    // Maus-Events
+    joystickEl.addEventListener("mousedown", () => {
+      joystickIsMouseDown = true;
+    });
+    joystickEl.addEventListener("mousemove", (e) => {
+      if(!joystickIsMouseDown) return;
+      const rect = joystickEl.getBoundingClientRect();
+      const dx = e.clientX - (rect.left + rect.width / 2);
+      const dy = e.clientY - (rect.top + rect.height / 2);
+      let dist = Math.sqrt(dx*dx + dy*dy);
+      if(dist > maxJoystickRadius){
+        const ang = Math.atan2(dy, dx);
+        joystickDeltaX = maxJoystickRadius * Math.cos(ang);
+        joystickDeltaY = maxJoystickRadius * Math.sin(ang);
+      } else {
+        joystickDeltaX = dx;
+        joystickDeltaY = dy;
+      }
+      knobEl.style.transform = `translate(calc(-50% + ${joystickDeltaX}px), calc(-50% + ${joystickDeltaY}px))`;
+    });
+    joystickEl.addEventListener("mouseup", () => {
+      joystickIsMouseDown = false;
+      joystickDeltaX = 0;
+      joystickDeltaY = 0;
+      knobEl.style.transform = "translate(-50%, -50%)";
+    });
+    joystickEl.addEventListener("mouseleave", () => {
+      if(joystickIsMouseDown){
+        joystickIsMouseDown = false;
+        joystickDeltaX = 0;
+        joystickDeltaY = 0;
+        knobEl.style.transform = "translate(-50%, -50%)";
+      }
+    });
+
+    /* ================================
+       SCHIESSEN (Touch & Maus)
+    =============================== */
+    canvas.addEventListener("mousedown", () => { isFiring = true; });
+    canvas.addEventListener("mouseup",   () => { isFiring = false; });
+    canvas.addEventListener("touchstart", (e) => { 
+      e.preventDefault(); // Verhindert unerwünschte Touch-Events
+      isFiring = true; 
+    });
+    canvas.addEventListener("touchend",   (e) => { 
+      e.preventDefault(); // Verhindert unerwünschte Touch-Events
+      isFiring = false; 
+    });
+
+    // Tastatur-Events (Pfeiltasten, WASD & Space)
+    document.addEventListener("keydown", (e) => {
+      switch(e.key.toLowerCase()){
+        case "arrowup": keyUp = true; break;
+        case "arrowdown": keyDown = true; break;
+        case "arrowleft": keyLeft = true; break;
+        case "arrowright": keyRight = true; break;
+        case "w": keyW = true; break;
+        case "a": keyA = true; break;
+        case "s": keyS = true; break;
+        case "d": keyD = true; break;
+        case " ": isFiring = true; break;
+      }
+    });
+    document.addEventListener("keyup", (e) => {
+      switch(e.key.toLowerCase()){
+        case "arrowup": keyUp = false; break;
+        case "arrowdown": keyDown = false; break;
+        case "arrowleft": keyLeft = false; break;
+        case "arrowright": keyRight = false; break;
+        case "w": keyW = false; break;
+        case "a": keyA = false; break;
+        case "s": keyS = false; break;
+        case "d": keyD = false; break;
+        case " ": isFiring = false; break;
+      }
+    });
+
+    function fireBullet(){
+      const now = Date.now();
+      if(now - lastShotTime < getFireRate()) return;
+
+      const n        = getMultishotBullets();
+      const maxAngle = 15 + (skills.multishot * 10);
+      const angleStep= (n > 1) ? (maxAngle * Math.PI / 180) / (n -1) : 0;
+      const startAngle= -((n -1) * angleStep) / 2;
+
+      for(let i = 0; i < n; i++){
+        const angle = startAngle + i * angleStep;
+        bullets.push({
+          x: player.x, // Korrektur: Aus der Mitte des Raumschiffs
+          y: player.y - player.height / 2,
+          dx: Math.sin(angle) * getBulletSpeed(),
+          dy: -Math.cos(angle) * getBulletSpeed(),
+          bounce: skills.bounce,
+          pierce: skills.pierce,
+          size: getBulletSize(),
+          color: "red" // Ändern der Schussfarbe zu Rot
+        });
+      }
+      lastShotTime = now;
+
+      // Firing Sound
+      playSoundEffect("fireSound");
+
+      // Feuerantriebseffekt hinzufügen (mehrere Partikel in alle Richtungen)
+      addThrusterParticles();
+    }
+
+    /* ================================
+       STAR-HINTERGRUND
+    =============================== */
+    function spawnStar(){
+      if(gameOverPending) return; // Keine neuen Sterne während Game Over Pause
+      stars.push({
+        x: Math.random() * canvas.width,
+        y: -10,
+        size: Math.random() * 2 + 1,
+        speed: Math.random() * 1 + 0.5
+      });
+    }
+    setInterval(spawnStar, 200);
+    // Initialisiere Sterne von Anfang an
+    for(let i = 0; i < 100; i++){
+      stars.push({
+        x: Math.random() * canvas.width,
+        y: Math.random() * canvas.height,
+        size: Math.random() * 2 + 1,
+        speed: Math.random() * 1 + 0.5
+      });
+    }
+
+    /* ================================
+       GEGNER
+    =============================== */
+    function spawnEnemy(){
+      enemies.push({
+        x: Math.random() * (canvas.width - 40),
+        y: -50,
+        width: 40,
+        height: 40,
+        speed: (Math.random() * 1 + enemyBaseSpeed),
+        color: "magenta"
+      });
+    }
+
+    // Initialisiere Spawn-Interval basierend auf spawnRateInput
+    function initSpawnInterval(value){
+      if(spawnIntervalId){
+        clearInterval(spawnIntervalId);
+      }
+      spawnIntervalId = setInterval(()=>{
+        if(!gameOverPending && !isPaused) spawnEnemy();
+      }, value);
+    }
+
+    // Starte initiales Spawn-Intervall
+    const spawnRateInputInitial = document.getElementById("spawnRateInput").value;
+    initSpawnInterval(parseInt(spawnRateInputInitial));
+
+    /* ================================
+       UPDATE & KOLLISION
+    =============================== */
+    function update(){
+      if(isPaused) return;
+
+      const usedTimeScale = getTimeScale();
+
+      // Joystick-Steuerung
+      player.x += joystickDeltaX * 0.1 * getPlayerSpeed();
+      player.y += joystickDeltaY * 0.1 * getPlayerSpeed();
+
+      // Pfeiltasten und WASD
+      if(keyUp || keyW)    player.y -= player.speed;
+      if(keyDown || keyS)  player.y += player.speed;
+      if(keyLeft || keyA)  player.x -= player.speed;
+      if(keyRight || keyD) player.x += player.speed;
+
+      // Schießen
+      if(isFiring && player.isActive) fireBullet();
+
+      // Grenzen
+      player.x = Math.max(0, Math.min(player.x, canvas.width - player.width));
+      player.y = Math.max(0, Math.min(player.y, canvas.height - player.height));
+
+      // Unverwundbarkeit und Blinken
+      handleInvincibility();
+
+      // Sterne
+      for(let i = stars.length -1; i >=0; i--){
+        const star = stars[i];
+        star.y += star.speed * usedTimeScale;
+        if(star.y > canvas.height){
+          stars.splice(i,1);
+        }
+      }
+
+      // Bullets
+      for(let i = bullets.length -1; i >=0; i--){
+        const bullet = bullets[i];
+        bullet.x += bullet.dx * usedTimeScale;
+        bullet.y += bullet.dy * usedTimeScale;
+
+        // Ränder
+        if(bullet.x < 0 || bullet.x > canvas.width){
+          if(bullet.bounce > 0){
+            bullet.dx = -bullet.dx; bullet.bounce--;
+          } else {
+            bullets.splice(i,1);
+            continue;
+          }
+        }
+        if(bullet.y < 0 || bullet.y > canvas.height){
+          if(bullet.bounce > 0){
+            bullet.dy = -bullet.dy; bullet.bounce--;
+          } else {
+            bullets.splice(i,1);
+            continue;
+          }
+        }
+      }
+
+      // Gegner
+      for(let z = enemies.length - 1; z >=0; z--){
+        const enemy = enemies[z];
+        enemy.y += enemy.speed * usedTimeScale;
+        if(enemy.y > canvas.height){
+          enemies.splice(z,1);
+          continue;
+        }
+
+        // Bullet vs. Enemy
+        for(let b = bullets.length -1; b >=0; b--){
+          const bullet = bullets[b];
+          if(
+            bullet.x < enemy.x + enemy.width &&
+            bullet.x + bullet.size > enemy.x &&
+            bullet.y < enemy.y + enemy.height &&
+            bullet.y + bullet.size > enemy.y
+          ){
+            // Treffer
+            if(bullet.pierce > 0) bullet.pierce--;
+            else bullets.splice(b,1);
+            enemies.splice(z,1);
+
+            score += pointsForDefeatedEnemyValue;
+            if(enableEnemyAbilities) checkForAbilityGain();
+
+            // Enemy Hit Sound
+            playSoundEffect("enemyHitSound");
+
+            // Keine Explosion beim Zerstören des Gegners
+
+            break; // Enemy ist zerstört, beende Bullet-Schleife
+          }
+        }
+
+        // Gegner vs. Spieler => Leben -1, kurz unverwundbar + Blinken
+        if(player.isActive && !player.invincible && 
+           enemy.x < player.x + player.width &&
+           enemy.x + enemy.width > player.x &&
+           enemy.y < player.y + player.height &&
+           enemy.y + enemy.height > player.y
+        ){
+          player.lives--;
+          player.invincible = true;
+          player.invincibleStartTime = Date.now();
+
+          // Player Hit Sound
+          playSoundEffect("playerHitSound");
+
+          enemies.splice(z,1);
+
+          if(player.lives > 0){
+            // Kein Explosionseffekt, nur Blinken
+            startBlinking();
+          } else {
+            // Explosion hinzufügen und Game Over
+            addFinalExplosion(player.x + player.width / 2, player.y + player.height / 2);
+            // Blinken beenden
+            stopBlinking();
+          }
+
+          if(player.lives <= 0){
+            // Spiel deaktivieren
+            player.isActive = false;
+
+            // Game Over Pause von 4 Sekunden einleiten
+            gameOverPending = true;
+
+            // Explosion Animation hinzufügen (bereits oben)
+            // addFinalExplosion(player.x + player.width / 2, player.y + player.height / 2);
+
+            // Explosion und Pacman Sounds sofort abspielen
+            playExplosionThenLostSound();
+
+            // Pause von 4 Sekunden bevor Game Over Screen angezeigt wird
+            setTimeout(() => {
+              // Game Over Screen anzeigen
+              gameOverMenu.style.display = "flex";
+            }, 4000); // 4000 ms = 4 Sekunden
+          }
+        }
+      }
+
+      // Feuerantriebseffekt aktualisieren
+      updateThrusterParticles();
+
+      // Explosionseffekte aktualisieren
+      updateExplosions();
+    }
+
+    /* ================================
+       BLICKEN UND GESCHWINDIGKEIT ANPASSEN
+    =============================== */
+    function handleInvincibility(){
+      if(player.invincible){
+        const elapsed = Date.now() - player.invincibleStartTime;
+        if(elapsed >= player.invincibleDuration){
+          player.invincible = false;
+          player.currentSpeed = 4; // Rückkehr zur Basisgeschwindigkeit
+          stopBlinking();
+        } else {
+          // Anpassung der Geschwindigkeit basierend auf verbleibender Unverwundbarkeit
+          const remaining = player.invincibleDuration - elapsed;
+          // Geschwindigkeit nimmt zu, je weniger Zeit verbleibt
+          player.currentSpeed = 4 + (2 * (player.invincibleDuration - remaining) / player.invincibleDuration);
+        }
+      }
+    }
+
+    function startBlinking(){
+      if(player.blinkInterval) return;
+      player.blinkInterval = setInterval(() => {
+        player.blinkState = !player.blinkState;
+        if(player.blinkState){
+          player.color = "transparent";
+        } else {
+          player.color = "gray";
+        }
+      }, 200); // Blinkt alle 200ms
+    }
+
+    function stopBlinking(){
+      clearInterval(player.blinkInterval);
+      player.blinkInterval = null;
+      player.color = "gray";
+    }
+
+    /* ================================
+       FIRE ANTRIEB (Thruster)
+    =============================== */
+    function addThrusterParticles(){
+      const thrusterCount = 10; // Anzahl der Partikel pro Schuss
+      for(let i = 0; i < thrusterCount; i++){
+        const angle = Math.random() * 2 * Math.PI; // Zufälliger Winkel in alle Richtungen
+        const speed = Math.random() * 2 + 1;
+        thrusterParticles.push({
+          x: player.x + player.width / 2,
+          y: player.y + player.height / 2,
+          size: 5,
+          opacity: 1,
+          dx: Math.cos(angle) * speed,
+          dy: Math.sin(angle) * speed,
+          life: 1000 // Lebensdauer in ms
+        });
+      }
+    }
+
+    function updateThrusterParticles(){
+      for(let i = thrusterParticles.length -1; i >=0; i--){
+        const p = thrusterParticles[i];
+        p.x += p.dx * 0.05;
+        p.y += p.dy * 0.05;
+        p.size *= 0.95; // Verkleinern
+        p.opacity -= 0.01; // Verblassen
+        p.life -= 50;
+        if(p.life <=0 || p.opacity <=0 || p.size <=0){
+          thrusterParticles.splice(i,1);
+        }
+      }
+    }
+
+    /* ================================
+       EXPLOSIONSEFFEKT
+    =============================== */
+    function addFinalExplosion(x, y){
+      const explosion = {
+        x: x,
+        y: y,
+        particles: [],
+        maxParticles: 20,
+        colors: ["gray", "red", "orange", "yellow"],
+        explosionDuration: 1000, // in ms
+        startTime: Date.now()
+      };
+      for(let i = 0; i < explosion.maxParticles; i++){
+        const angle = Math.random() * 2 * Math.PI;
+        const speed = Math.random() * 3 + 1;
+        const color = explosion.colors[Math.floor(Math.random() * explosion.colors.length)];
+        explosion.particles.push({
+          x: x,
+          y: y,
+          dx: Math.cos(angle) * speed,
+          dy: Math.sin(angle) * speed,
+          size: Math.random() * 5 + 2,
+          opacity: 1,
+          color: color
+        });
+      }
+      explosions.push(explosion);
+    }
+
+    function updateExplosions(){
+      for(let i = explosions.length -1; i >=0; i--){
+        const e = explosions[i];
+        const elapsed = Date.now() - e.startTime;
+        if(elapsed > e.explosionDuration){
+          explosions.splice(i,1);
+          continue;
+        }
+        e.particles.forEach(p => {
+          p.x += p.dx;
+          p.y += p.dy;
+          p.size *= 0.95;
+          p.opacity -= 0.005;
+        });
+      }
+    }
+
+    /* ================================
+       ZEICHNEN
+    =============================== */
+    function draw(){
+      ctx.clearRect(0, 0, canvas.width, canvas.height);
+
+      // Sterne
+      ctx.fillStyle = "white";
+      stars.forEach(star => {
+        ctx.beginPath();
+        ctx.arc(star.x, star.y, star.size, 0, 2 * Math.PI);
+        ctx.fill();
+      });
+
+      // Gegner
+      enemies.forEach(enemy => {
+        ctx.fillStyle = enemy.color;
+        ctx.fillRect(enemy.x, enemy.y, enemy.width, enemy.height);
+      });
+
+      // Explosionseffekte
+      explosions.forEach(e => {
+        e.particles.forEach(p => {
+          if(p.opacity > 0 && p.size > 0){
+            ctx.save();
+            ctx.globalAlpha = p.opacity;
+            ctx.fillStyle = p.color;
+            ctx.beginPath();
+            ctx.arc(p.x, p.y, p.size, 0, 2 * Math.PI);
+            ctx.fill();
+            ctx.restore();
+          }
+        });
+      });
+
+      // Feuerantriebseffekt zeichnen
+      thrusterParticles.forEach(p => {
+        if(p.opacity > 0 && p.size > 0){
+          ctx.globalAlpha = p.opacity;
+          ctx.fillStyle = "orange";
+          ctx.beginPath();
+          ctx.arc(p.x, p.y, p.size, 0, 2 * Math.PI);
+          ctx.fill();
+          ctx.globalAlpha = 1; // Rücksetzen
+        }
+      });
+
+      // Spieler (nur zeichnen, wenn aktiv)
+      if(player.isActive){
+        drawSpaceship(player.x, player.y, player.width, player.height);
+      }
+
+      // Schüsse
+      bullets.forEach(bullet => {
+        ctx.fillStyle = bullet.color;
+        ctx.fillRect(bullet.x, bullet.y, bullet.size, bullet.size);
+      });
+
+      // Update Score & Lives
+      document.getElementById("score").textContent = `Score: ${score} | Lives: ${player.lives}`;
+    }
+
+    function drawSpaceship(x, y, w, h){
+      ctx.save();
+      if(player.invincible){
+        ctx.globalAlpha = 0.5; // Halbtransparent für Blinken
+      }
+      ctx.fillStyle = player.color;
+      ctx.beginPath();
+      ctx.moveTo(x - w/2, y + h/2);
+      ctx.lineTo(x + w/2, y + h/2);
+      ctx.lineTo(x,       y - h/2);
+      ctx.closePath();
+      ctx.fill();
+      ctx.restore();
+    }
+
+    /* ================================
+       SOUND SEQUENCING
+    =============================== */
+    function playExplosionThenLostSound(){
+      const explosionSound = document.getElementById("explosionSound");
+      const lostSound = document.getElementById("lostSound");
+      if(explosionSound && lostSound){
+        // Explosion Sound abspielen
+        const explosionClone = explosionSound.cloneNode();
+        explosionClone.volume = parseFloat(document.getElementById("sfxVolume").value);
+        explosionClone.play()
+          .then(() => {
+            console.log("Explosion sound played successfully");
+            // Nach dem Ende des Explosion Sounds den Lost Sound abspielen
+            explosionClone.onended = () => {
+              const lostClone = lostSound.cloneNode();
+              lostClone.volume = parseFloat(document.getElementById("sfxVolume").value);
+              lostClone.play()
+                .then(() => {
+                  console.log("Lost sound played successfully");
+                  // Nach dem Lost Sound den Startbildschirm anzeigen
+                  startMenu.style.display = "flex";
+                  resetGameAfterExplosion();
+                })
+                .catch(error => console.error("Error playing lost sound:", error));
+            };
+          })
+          .catch(error => console.error("Error playing explosion sound:", error));
+      } else {
+        console.error("Explosion or Lost sound element not found");
+        // Falls Explosion Sound nicht gefunden wurde, direkt Lost Sound abspielen und Startbildschirm anzeigen
+        playSoundEffect("lostSound");
+        startMenu.style.display = "flex";
+        resetGameAfterExplosion();
+      }
+    }
+
+    function resetGameAfterExplosion(){
+      // Verzögerung hinzufügen, um sicherzustellen, dass die Explosion sichtbar bleibt
+      setTimeout(() => {
+        resetGame();
+      }, 2000); // 2 Sekunden Verzögerung
+    }
+
+    /* ================================
+       SPIELLOOP
+    =============================== */
+    function gameLoop(){
+      update();
+      draw();
+      requestAnimationFrame(gameLoop);
+    }
+    gameLoop();
+
+    /* ================================
+       MENÜ-LOGIK
+    =============================== */
+    const pauseMenuElement       = document.getElementById("pauseMenu");
+    const creativeMenuElement    = document.getElementById("creativeMenu");
+    const gameOverMenu           = document.getElementById("gameOverMenu");
+    const resumeButtonElement    = document.getElementById("resumeButton");
+    const restartButtonElement   = document.getElementById("restartButton");
+    const creativeButtonElement  = document.getElementById("creativeButton");
+    const backToPauseButtonElement = document.getElementById("backToPauseButton");
+
+    const pointsForDefeatedEnemy = document.getElementById("pointsForDefeatedEnemy");
+    const pointsForAbility       = document.getElementById("pointsForAbility");
+    const gameSpeedInput         = document.getElementById("gameSpeedInput");
+    const spawnRateInput         = document.getElementById("spawnRateInput");
+    const enemySpeedInput        = document.getElementById("enemySpeedInput");
+    const enemyAbilitiesSwitch   = document.getElementById("enemyAbilitiesSwitch");
+    const setScoreInput          = document.getElementById("setScoreInput");
+    const manualPointsSwitch     = document.getElementById("manualPointsSwitch");
+
+    // Pause Button
+    const pauseButtonElement = document.getElementById("pauseButton");
+    pauseButtonElement.addEventListener("click", () => {
+      if(!gameOverPending){
+        isPaused = true;
+        pauseMenuElement.style.display = "flex";
+        stopSound(); // Musik beim Pausieren stoppen
+      }
+    });
+
+    // Resume Button
+    resumeButtonElement.addEventListener("click", () => {
+      isPaused = false;
+      pauseMenuElement.style.display = "none";
+      // Musik wieder starten, falls sie nicht läuft
+      if(!isMusicStarted){
+        startSound();
+      }
+    });
+
+    // Restart Button
+    restartButtonElement.addEventListener("click", () => {
+      resetGame();
+    });
+
+    // Creative Button
+    creativeButtonElement.addEventListener("click", () => {
+      pauseMenuElement.style.display = "none";
+      creativeMenuElement.style.display = "flex";
+    });
+
+    // Back to Pause Button
+    backToPauseButtonElement.addEventListener("click", () => {
+      creativeMenuElement.style.display = "none";
+      pauseMenuElement.style.display = "flex";
+    });
+
+    // Collapsible Sections
+    document.querySelectorAll(".collapsible").forEach(header => {
+      header.addEventListener("click", () => {
+        const content = header.nextElementSibling;
+        content.style.display = (content.style.display === "block") ? "none" : "block";
+      });
+    });
+    document.querySelectorAll(".collapsible-content").forEach(content => {
+      content.style.display = "none";
+    });
+
+    // Live-Änderungen
+    pointsForDefeatedEnemy.addEventListener("change", () => {
+      pointsForDefeatedEnemyValue = parseInt(pointsForDefeatedEnemy.value);
+    });
+    pointsForAbility.addEventListener("change", () => {
+      pointsForAbilityValue = parseInt(pointsForAbility.value);
+    });
+    gameSpeedInput.addEventListener("change", () => {
+      timeScale = parseFloat(gameSpeedInput.value);
+    });
+    spawnRateInput.addEventListener("change", () => {
+      initSpawnInterval(parseInt(spawnRateInput.value));
+    });
+    enemySpeedInput.addEventListener("change", () => {
+      enemyBaseSpeed = parseFloat(enemySpeedInput.value);
+    });
+    enemyAbilitiesSwitch.addEventListener("change", () => {
+      enableEnemyAbilities = enemyAbilitiesSwitch.checked;
+    });
+    manualPointsSwitch.addEventListener("change", () => {
+      enableManualPointsAbilities = manualPointsSwitch.checked;
+      if(enableManualPointsAbilities && score > lastSkillScore){
+        lastSkillScore = score;
+      }
+    });
+    setScoreInput.addEventListener("change", () => {
+      score = parseInt(setScoreInput.value) || 0;
+      player.lives = 5; // Setze Leben zurück
+      player.isActive = true; // Spieler wieder aktivieren
+      document.getElementById("score").textContent = `Score: ${score} | Lives: ${player.lives}`;
+      if(enableManualPointsAbilities){
+        checkForAbilityGain();
+      }
+    });
+
+    /* ================================
+       FÄHIGKEITEN-EINSTELLUNGEN
+    =============================== */
+    const skillsContainer = document.getElementById("skillsContainer");
+    const skillNames = {
+      rapidFire:"Rapid Fire",
+      multishot:"Multishot",
+      bounce:"Bounce",
+      pierce:"Pierce",
+      speed:"Speed",
+      bulletSpeed:"Bullet Speed",
+      bulletSize:"Bullet Size"
+    };
+
+    Object.keys(skillNames).forEach((key) => {
+      const skillDiv = document.createElement("div");
+      skillDiv.className = "skill-control";
+
+      // Name
+      const nameSpan = document.createElement("div");
+      nameSpan.className = "skill-name";
+      nameSpan.textContent = skillNames[key];
+      skillDiv.appendChild(nameSpan);
+
+      // Minus
+      const minusBtn = document.createElement("button");
+      minusBtn.textContent = "-";
+      minusBtn.addEventListener("click", () => {
+        if(skills[key] > 0){
+          skills[key]--;
+          skillInput.value = skills[key];
+          updateSkillDisplay();
+        }
+      });
+      skillDiv.appendChild(minusBtn);
+
+      // Input
+      const skillInput = document.createElement("input");
+      skillInput.type = "number";
+      skillInput.value = skills[key];
+      skillInput.min = 0;
+      skillInput.step = 1;
+      skillInput.addEventListener("change", () => {
+        const val = parseInt(skillInput.value) || 0;
+        skills[key] = (val < 0) ? 0 : val;
+        skillInput.value = skills[key];
+        updateSkillDisplay();
+      });
+      skillDiv.appendChild(skillInput);
+
+      // Plus
+      const plusBtn = document.createElement("button");
+      plusBtn.textContent = "+";
+      plusBtn.addEventListener("click", () => {
+        skills[key]++;
+        skillInput.value = skills[key];
+        updateSkillDisplay();
+      });
+      skillDiv.appendChild(plusBtn);
+
+      skillsContainer.appendChild(skillDiv);
+    });
+
+    /* ================================
+       MUSIK MIT WEBAUDIO
+    =============================== */
+    let audioContext;
+    let isMusicStarted = false;
+    let musicIntervalId = null;
+    let masterGain; // Master Gain Node für Musik
+
+    function startSound(){
+      if(isMusicStarted) return;
+      isMusicStarted = true;
+      audioContext = new (window.AudioContext || window.webkitAudioContext)();
+
+      // Master Gain Node erstellen
+      masterGain = audioContext.createGain();
+      masterGain.gain.value = parseFloat(document.getElementById("musicVolume").value);
+      masterGain.connect(audioContext.destination);
+
+      const noteFrequencies = [220, 246.94, 261.63, 293.66, 329.63, 369.99, 392, 440, 493.88, 523.25];
+
+      musicIntervalId = setInterval(() => {
+        if(gameOverPending || isPaused) return; // Keine Töne wenn pausiert oder Game Over Pending
+        playRandomNote();
+      }, 300);
+
+      function playRandomNote(){
+        const freq = noteFrequencies[Math.floor(Math.random() * noteFrequencies.length)];
+        let osc = audioContext.createOscillator();
+        let gain = audioContext.createGain();
+        osc.type = "square";  // 8-bit Feeling
+        osc.frequency.value = freq;
+        osc.connect(gain);
+        gain.connect(masterGain);
+
+        // Kurzer Decay
+        gain.gain.setValueAtTime(0.2, audioContext.currentTime);
+        gain.gain.exponentialRampToValueAtTime(0.00001, audioContext.currentTime + 0.2);
+
+        osc.start();
+        osc.stop(audioContext.currentTime + 0.25);
+      }
+    }
+
+    function stopSound(){
+      if(!isMusicStarted) return;
+      isMusicStarted = false;
+      if(musicIntervalId){
+        clearInterval(musicIntervalId);
+        musicIntervalId = null;
+      }
+      // AudioContext schließen
+      if(audioContext){
+        audioContext.close();
+        audioContext = null;
+      }
+    }
+
+    function stopMusic(){
+      stopSound();
+    }
+
+    /* ================================
+       SPIEL-RÜCKSETZEN
+    =============================== */
+    function resetGame(){
+      // Alle relevanten Variablen zurücksetzen
+      isPaused = true;
+      gameOverPending = false;
+      score = 0;
+      lastSkillScore = 0;
+      player.lives = 5;
+      player.invincible = false;
+      player.invincibleStartTime = null;
+      player.currentSpeed = 4;
+      player.color = "gray";
+      player.isActive = true;
+      player.blinkState = false;
+      if(player.blinkInterval){
+        clearInterval(player.blinkInterval);
+        player.blinkInterval = null;
+      }
+      player.x = canvas.width / 2;
+      player.y = canvas.height - 80;
+      document.getElementById("score").textContent = `Score: ${score} | Lives: ${player.lives}`;
+      bullets.length = 0;
+      enemies.length = 0;
+      stars.length = 0;
+      thrusterParticles.length = 0;
+      explosions.length = 0;
+
+      // Skills zurücksetzen
+      for(let sk in skills){
+        skills[sk] = 0;
+      }
+      updateSkillDisplay();
+
+      // Menüwerte aktualisieren
+      pointsForDefeatedEnemyValue = parseInt(pointsForDefeatedEnemy.value);
+      pointsForAbilityValue       = parseInt(pointsForAbility.value);
+      timeScale                  = parseFloat(gameSpeedInput.value);
+      enemyBaseSpeed             = parseFloat(enemySpeedInput.value);
+      initSpawnInterval(parseInt(spawnRateInput.value));
+
+      enableEnemyAbilities        = enemyAbilitiesSwitch.checked;
+      enableManualPointsAbilities = manualPointsSwitch.checked;
+
+      setScoreInput.value = "0";
+
+      // Neue Sterne generieren
+      for(let i = 0; i < 100; i++){
+        stars.push({
+          x: Math.random() * canvas.width,
+          y: Math.random() * canvas.height,
+          size: Math.random() * 2 + 1,
+          speed: Math.random() * 1 + 0.5
+        });
+      }
+
+      // Alle Arrays leeren
+      bullets.length = 0;
+      enemies.length = 0;
+      stars.length = 0;
+      thrusterParticles.length = 0;
+      explosions.length = 0;
+
+      // Menü verstecken und Startmenü anzeigen
+      gameOverMenu.style.display = "none";
+      pauseMenuElement.style.display = "none";
+      creativeMenuElement.style.display = "none";
+      startMenu.style.display = "flex";
+      stopSound();
+    }
+
+    /* ================================
+       PLAY BUTTON LOGIK
+    =============================== */
+    playButton.addEventListener("click", () => {
+      startMenu.style.display = "none";
+      isPaused = false;
+      // Starte Musik, falls nicht bereits gestartet
+      if(!isMusicStarted){
+        startSound();
+      }
+    });
+
+    /* ================================
+       QUIT BUTTON LOGIK
+    =============================== */
+    quitButton.addEventListener("click", () => {
+      alert("Danke fürs Spielen!");
+      try {
+        window.close();
+      } catch(e){
+        console.log("Fenster kann nicht geschlossen werden (nicht via Script geöffnet).");
+      }
+    });
+
+    /* ================================
+       GAME OVER MENU LOGIK
+    =============================== */
+    const playAgainButton   = document.getElementById("playAgainButton");
+    const quitGameButton    = document.getElementById("quitGameButton");
+
+    playAgainButton.addEventListener("click", () => {
+      resetGame();
+    });
+
+    quitGameButton.addEventListener("click", () => {
+      alert("Danke fürs Spielen!");
+      try {
+        window.close();
+      } catch(e){
+        console.log("Fenster kann nicht geschlossen werden (nicht via Script geöffnet).");
+      }
+    });
+
+    /* ================================
+       VOLUMEREGLER LOGIK
+    =============================== */
+    const musicVolumeSlider = document.getElementById("musicVolume");
+    const sfxVolumeSlider   = document.getElementById("sfxVolume");
+
+    musicVolumeSlider.addEventListener("input", () => {
+      if(masterGain){
+        masterGain.gain.value = parseFloat(musicVolumeSlider.value);
+        console.log(`Music volume set to ${masterGain.gain.value}`);
+      }
+    });
+
+    sfxVolumeSlider.addEventListener("input", () => {
+      // Alle Soundeffekte Audio-Elemente anpassen
+      const soundElements = [
+        document.getElementById("fireSound"),
+        document.getElementById("enemyHitSound"),
+        document.getElementById("playerHitSound"),
+        document.getElementById("explosionSound"),
+        document.getElementById("lostSound")
+      ];
+      soundElements.forEach(sound => {
+        if(sound){
+          sound.volume = parseFloat(sfxVolumeSlider.value);
+          console.log(`Set volume for ${sound.id} to ${sound.volume}`);
+        }
+      });
+    });
+
+    // Initialisiere Soundeffekte Lautstärke
+    sfxVolumeSlider.dispatchEvent(new Event('input'));
+
+    /* ================================
+       TEST SOUND BUTTON LOGIK
+    =============================== */
+    const testSoundButton = document.getElementById("testSoundButton");
+    const testFireSound = document.getElementById("fireSound");
+
+    testSoundButton.addEventListener("click", () => {
+      console.log("Test Sound Button Clicked");
+      playSoundEffect("fireSound");
+    });
+
+    /* ================================
+       SOUND-EFFEKTE ABSPIELEN
+    =============================== */
+    function playSoundEffect(soundId){
+      const sound = document.getElementById(soundId);
+      if(sound){
+        const clone = sound.cloneNode(); // Klone das Audio-Element, um Überschneidungen zu vermeiden
+        clone.volume = parseFloat(sfxVolumeSlider.value); // Stelle sicher, dass die Lautstärke korrekt gesetzt ist
+        clone.play()
+          .then(() => console.log(`${soundId} played successfully`))
+          .catch(error => console.error(`Error playing ${soundId}:`, error));
+      } else {
+        console.error(`${soundId} element not found`);
+      }
+    }
+
+    /* ================================
+       SPIELLOOP
+    =============================== */
+    // Bereits oben definiert und gestartet
+  </script>
+</body>
+</html>
